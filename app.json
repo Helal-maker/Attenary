@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,7 +15,8 @@
       "supportsTablet": true
     },
     "android": {
-      "newArchEnabled": true,
+      "newArchEnabled": false,
+      "jsEngine": "hermes",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f1eedf"
@@ -24,8 +24,6 @@
       "edgeToEdgeEnabled": true,
       "package": "com.oryno.attenary",
       "permissions": [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET"
       ]
     },
@@ -33,7 +31,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      ["expo-file-system", { "android": { "writeExternalStorage": true } }]
+      [
+        "expo-file-system",
+        {
+          "android": {
+            "writeExternalStorage": true
+          }
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

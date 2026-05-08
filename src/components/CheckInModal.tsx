@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
-import { colors, spacing, borderRadius, fonts } from '../theme/colors';
+import { colors, spacing, borderRadius, fonts, shadows } from '../theme/colors';
 
 // SVG Icons
 const UserIcon = ({ color = '#94a3b8', size = 24 }) => (

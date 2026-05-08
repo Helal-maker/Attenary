@@ -80,9 +80,27 @@ export const Provider = ({ children }: AppProviderProps) => {
   useEffect(() => {
     const initApp = async () => {
       try {
+        console.log('Initializing app data...');
         await loadData();
+        console.log('App data initialized successfully');
       } catch (error) {
-        console.log('App initialization error (non-critical):', error?.message || error);
+        console.error('App initialization error:', error);
+        // Don't crash the app on initialization errors
+        // Set default state and continue
+        setAppData(prevData => ({ ...prevData }));
+        setStorageError(error?.message || 'Failed to load data');
+
+        // Show user-friendly error message
+        if (Platform.OS !== 'web') {
+          setTimeout(() => {
+            Alert.alert(
+              'Data Loading Error',
+              'Some data could not be loaded. The app will continue with default settings.',
+              [{ text: 'OK' }]
+            );
+          }, 1000);
+        }
+      } finally {
         setLoading(false);
       }
     };
@@ -272,9 +290,39 @@ export const Provider = ({ children }: AppProviderProps) => {
   const saveDataDirect = async (data: AppData): Promise<boolean> => {
     try {
       const dataString = JSON.stringify(data);
-      console.log('Saving data directly:', { platform: Platform.OS, dataLength: dataString.length });
+
+      // Add size validation for Android storage limits
+      const dataSizeBytes = dataString.length * 2; // Rough estimate for UTF-16
+      console.log('Saving data directly:', {
+        platform: Platform.OS,
+        dataLength: dataString.length,
+        estimatedSize: `${(dataSizeBytes / 1024).toFixed(1)}KB`
+      });
+
+      // Prevent saving if data is too large (Android AsyncStorage has limits)
+      if (dataSizeBytes > 4 * 1024 * 1024) { // 4MB safety limit
+        console.error('Data too large to save, skipping save operation');
+        setStorageError('Data size exceeds storage limits');
+
+        if (Platform.OS !== 'web') {
+          setTimeout(() => {
+            Alert.alert(
+              'Storage Limit Reached',
+              'Your data is too large to save. Please export and clear some old sessions.',
+              [{ text: 'OK' }]
+            );
+          }, 500);
+        }
+        return false;
+      }
+
       const success = await setStorageItem(STORAGE_KEY, dataString);
       console.log('Save result:', success ? 'Success' : 'Failed');
+
+      // Clear any previous storage errors on successful save
+      if (success) {
+        setStorageError(null);
+      }
       
       // Trigger automatic backup after successful save
       if (success) {
@@ -338,23 +386,53 @@ export const Provider = ({ children }: AppProviderProps) => {
     }
 
     try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      
-      if (!hasHardware || !isEnrolled) {
-        return false;
+      // Add timeout protection for biometric operations
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Biometric authentication timeout')), 30000)
+      );
+
+      const authPromise = async () => {
+        console.log('Checking biometric hardware...');
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+        console.log('Biometric check results:', { hasHardware, supportedTypes, isEnrolled });
+
+        if (!hasHardware || !isEnrolled) {
+          console.log('Biometric not available or not enrolled');
+          return false;
+        }
+
+        console.log('Starting biometric authentication...');
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Unlock Attenary',
+          fallbackLabel: 'Use Password',
+          cancelLabel: 'Cancel',
+          disableDeviceFallback: false,
+        });
+
+        console.log('Biometric authentication result:', result);
+        return result.success;
+      };
+
+      // Race between auth and timeout
+      return await Promise.race([authPromise(), timeoutPromise]);
+
+    } catch (error) {
+      console.error('Biometric authentication failed:', error);
+
+      // Don't crash the app - return false and continue
+      if (Platform.OS !== 'web') {
+        setTimeout(() => {
+          Alert.alert(
+            'Authentication Error',
+            'Biometric authentication failed. You can continue without it.',
+            [{ text: 'OK' }]
+          );
+        }, 500);
       }
 
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Unlock Data',
-        fallbackLabel: 'Use Password',
-        cancelLabel: 'Cancel',
-        disableDeviceFallback: false,
-      });
-
-      return result.success;
-    } catch (error) {
-      console.log('Biometric authentication error:', error);
       return false;
     }
   };
@@ -446,10 +524,10 @@ export const Provider = ({ children }: AppProviderProps) => {
       if (Platform.OS === 'web') {
         try {
           // Use clipboard for web
-          const Clipboard = require('expo-clipboard');
-          await Clipboard.setStringAsync(jsonString);
+          const { setStringAsync } = await import('expo-clipboard');
+          await setStringAsync(jsonString);
           Alert.alert(
-            'Backup Ready', 
+            'Backup Ready',
             'Your data has been copied to clipboard. Paste it into a text file to save.',
             [{ text: 'OK' }]
           );

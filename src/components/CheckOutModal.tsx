@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
-import { colors, spacing, borderRadius, fonts } from '../theme/colors';
+import { colors, spacing, borderRadius, fonts, shadows } from '../theme/colors';
 import { formatTime, formatTimeReversed } from '../utils/timeUtils';
 
 // SVG Icons
