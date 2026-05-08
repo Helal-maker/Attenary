@@ -96,7 +96,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       stack: error?.stack,
       componentStack: errorInfo?.componentStack,
       platform: Platform.OS,
-      version: require('../package.json').version
+      version: require('./package.json').version
     });
 
     const errorMessage = Platform.OS === 'web'
